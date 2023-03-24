@@ -1,168 +1,420 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Fri Mar 17 12:06:53 2023
+
+@author: Nigel
+"""
+
+# ----------------------------------------------------------------------------
 # Importing libraries
+import os
 import pandas as pd
 import numpy as np
-
-# Scikit-learn library: For SVM
-from sklearn import preprocessing
-from sklearn.metrics import confusion_matrix
-from sklearn import svm
-
-import itertools
-
-# Matplotlib library to plot the charts
 import matplotlib.pyplot as plt
-import matplotlib.mlab as mlab
+import seaborn as sns
 
-# Library for the statistic data visualisation
-import seaborn
+from sklearn.metrics import roc_curve, classification_report, confusion_matrix
+from sklearn.model_selection import train_test_split
+from sklearn.svm import SVC, OneClassSVM
+from sklearn.ensemble import IsolationForest
+from imblearn.over_sampling import RandomOverSampler, SMOTE
+from imblearn.under_sampling import RandomUnderSampler, NearMiss, TomekLinks, EditedNearestNeighbours
 
-# %matplotlib inline
+# ----------------------------------------------------------------------------
+# Global variables
+X_train = []
+y_train = []
 
+X_test = []
+y_test = []
+
+X_train_rus = []
+y_train_rus = []
+
+X_train_ros = []
+y_train_ros = []
+
+X_train_nearmiss = []
+y_train_nearmiss = []
+
+X_train_tomek = []
+y_train_tomek = []
+
+X_train_enn = []
+y_train_enn = []
+
+# ----------------------------------------------------------------------------
+def create_classification_report(y_test, y_pred):
+    print(classification_report(y_test, y_pred))
+    return
+
+def create_roc_curve(y_test, y_pred, model):
+    ns_probs = [0 for _ in range(len(y_test))]
+    
+    lr_probs = model.predict_proba(X_test)
+    lr_probs = lr_probs[:, 1]
+    
+    # ns_auc = roc_auc_score(y_test, ns_probs)
+    # lr_auc = roc_auc_score(y_test, lr_probs)
+    
+    ns_fpr, ns_tpr, _ = roc_curve(y_test, ns_probs)
+    lr_fpr, lr_tpr, _ = roc_curve(y_test, lr_probs)
+    
+    # plot the roc curve for the model
+    plt.plot(ns_fpr, ns_tpr, linestyle = '--')
+    plt.plot(lr_fpr, lr_tpr, marker = '.')
+    # axis labels
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    # show the legend
+    plt.legend()
+    # show the plot
+    plt.show()
+    return
+
+def create_hist(target, df):
+    sns.countplot(x = target, data = df)
+    return
+
+def random_under_sampling():
+    # Random Under-sampling
+    global X_train_rus
+    global y_train_rus
+    rus = RandomUnderSampler(random_state = 42)
+    X_train_rus, y_train_rus = rus.fit_resample(X_train, y_train)
+    return X_train_rus, y_train_rus
+
+def NearMiss_under_sampling():
+    global X_train_nearmiss
+    global y_train_nearmiss
+    nearmiss = NearMiss(version = 3)
+    X_train_nearmiss, y_train_nearmiss = nearmiss.fit_resample(X_train, y_train) # Under-sample the majority class
+    return  X_train_nearmiss, y_train_nearmiss
+
+def random_over_sampling():
+    global X_train_ros
+    global y_train_ros
+    ros = RandomOverSampler(random_state = 42)
+    X_train_ros, y_train_ros = ros.fit_resample(X_train, y_train)
+    return X_train_ros, y_train_ros
+
+def tomek_links():
+    # Reference code: https://imbalanced-learn.org/dev/references/generated/imblearn.under_sampling.TomekLinks.html
+    global X_train_tomek
+    global y_train_tomek
+    tl = TomekLinks()
+    X_train_tomek, y_train_tomek = tl.fit_resample(X_train, y_train)
+    return X_train_tomek, y_train_tomek
+
+def enn_under_sampling():
+    # Reference code: https://medium.com/quantyca/oversampling-and-undersampling-adasyn-vs-enn-60828a58db39
+    global X_train_enn
+    global y_train_enn
+    enn = EditedNearestNeighbours()
+    X_train_enn, y_train_enn = enn.fit_resample(X_train, y_train)
+    return X_train_enn, y_train_enn
+# ----------------------------------------------------------------------------
+os.getcwd()
+os.chdir('C:/Uni/2023/Capstone Project/Capstone_Project_Python')
+
+# ----------------------------------------------------------------------------
+# DATASET 1
 data = pd.read_csv('Data/creditcard.csv')  # Reading the file .csv
 df = pd.DataFrame(data)  # Converting data to Panda DataFrame
-df.describe()
+print(df.describe())
 
-df_fraud = df[df['Class'] == 1]  # Recovery of fraud data
-plt.figure(figsize=(15, 10))
-plt.scatter(df_fraud['Time'], df_fraud['Amount'])  # Display fraud amounts according to their time
-plt.title('Scratter plot amount fraud')
-plt.xlabel('Time')
-plt.ylabel('Amount')
-plt.xlim([0, 175000])
-plt.ylim([0, 2500])
+target = 'Class' # Setting target variable
+
+X = df.drop('Class', axis = 1)
+y = df['Class']
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# ----------------------------------------------------------------------------
+# DATASET 2
+# data = pd.read_csv('Data/PS_20174392719_1491204439457_log.csv')  # Reading the file .csv
+# df = pd.DataFrame(data)  # Converting data to Panda DataFrame
+# df.describe()
+
+# target = 'isFraud'
+
+# df = df.sample(frac = 0.05)
+
+# df = df.drop(['type', 'nameOrig', 'nameDest'], axis = 1)
+
+# X = df.drop('isFraud', axis = 1)
+# y = df['isFraud']
+
+# X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# ----------------------------------------------------------------------------
+# Histogram of 'Class' variable for whole data set
+df = pd.DataFrame(data) 
+create_hist(target, df)
+
+# ----------------------------------------------------------------------------
+# Random Under-sampling
+random_under_sampling()
+
+# ----------------------------------------------------------------------------
+# Histogram of 'Class' variable of under-sampled data
+
+
+# ---------------------------------------------------------------------------- 
+# SVM (Random Under-sampling)
+model_SVM = SVC(kernel = "linear", probability = True, random_state = 42) # Create and train model
+model_SVM.fit(X_train_rus, y_train_rus)
+
+y_pred = model_SVM.predict(X_test) # Testing model
+
+support_vectors = model_SVM.support_vectors_ # Store support vectors
+
+model = model_SVM # Change to 'model' so it can be passed to 'create_roc_curve' function
+model.score(X_train_rus, y_train_rus)
+model.score(X_test, y_test)
+
+print("\nClassification Report - SVM (Random Under-sampling)\n")
+create_classification_report(y_test, y_pred) # Create classification report
+create_roc_curve(y_test, y_pred, model) # Create ROC curve
+
+# ----------------------------------------------------------------------------
+# One Class SVM (Under-sampled)
+model_OCSVM = OneClassSVM(gamma = "scale", kernel = "linear")
+model_OCSVM.fit(X_train_rus, y_train_rus)
+
+y_pred = model_OCSVM.predict(X_test)
+
+model = model_OCSVM # Change to 'model' so it can be passed to 'create_roc_curve' function
+
+print("\nClassification Report - One Class SVM (Random Under-sampling)\n")
+create_classification_report(y_test, y_pred)
+
+fpr, tpr, thresholds = roc_curve(y_test, y_pred)
+plt.plot(fpr, tpr, 'k-', lw = 2)
+plt.xlabel('FPR')
+plt.ylabel('TPR')
 plt.show()
 
-df_corr = df.corr()
-plt.figure(figsize=(15, 10))
-seaborn.heatmap(df_corr, cmap="YlGnBu")  # Displaying the Heatmap
-seaborn.set(font_scale=2, style='white')
+# ----------------------------------------------------------------------------
+# Isolation Forest (Random Under-sampling)
+# Reference code: https://medium.com/grabngoinfo/isolation-forest-for-anomaly-detection-cd7871ae99b4
+model_IF = IsolationForest(n_estimators = 100, contamination = 0.5, random_state = 42)
+model_IF.fit(X_train_rus)
+y_pred = model_IF.predict(X_test)
+y_pred = [1 if i == -1 else 0 for i in y_pred]
 
-plt.title('Heatmap correlation')
+print("\nClassification Report - Isolation Forest (Random Under-sampling)\n")
+create_classification_report(y_test, y_pred) # Create classification report
+
+model_IF.get_params()
+
+
+fpr, tpr, thresholds = roc_curve(y_test, y_pred)
+plt.plot(fpr, tpr, 'k-', lw = 2)
+plt.xlabel('FPR')
+plt.ylabel('TPR')
 plt.show()
 
-rank = df_corr['Class']  # Retrieving the correlation coefficients per feature in relation to the feature class
-df_rank = pd.DataFrame(rank)
-df_rank = np.abs(df_rank).sort_values(by='Class', ascending=False)
-df_rank.dropna(inplace=True)  # Removing Missing Data (not a number)
+# Isolation Forest with Warm Start On New Trees
+model_IF = IsolationForest(n_estimators = 100, contamination = 0.5, random_state = 42, warm_start = True)
+model_IF.n_estimators += 20
+model_IF.fit(X_train_rus)
+y_pred = model_IF.predict(X_test)
+y_pred = [1 if i == -1 else 0 for i in y_pred]
 
-# We separate ours data in two groups : a train dataset and a test dataset
+print("\nClassification Report - Isolation Forest with Warm Start On New Trees (Random Under-sampling)\n")
+create_classification_report(y_test, y_pred) # Create classification report
 
-# First we build our train dataset
-df_train_all = df[0:150000]  # We cut in two the original dataset
-df_train_1 = df_train_all[df_train_all['Class'] == 1]  # We separate the data which are the frauds and the no frauds
-df_train_0 = df_train_all[df_train_all['Class'] == 0]
+fpr, tpr, thresholds = roc_curve(y_test, y_pred)
+plt.plot(fpr, tpr, 'k-', lw = 2)
+plt.xlabel('FPR')
+plt.ylabel('TPR')
+plt.show()
 
-df_sample = df_train_0.sample(300)
-df_train = pd.concat([df_train_1, df_sample])  # We gather the frauds with the no frauds.
-df_train = df_train.sample(frac=1)  # Then we mix our dataset
+# ----------------------------------------------------------------------------
+# Autoencoder (Random Under-sampling)
+from tensorflow.keras.layers import Dense, Conv2D, MaxPooling2D, UpSampling2D, Input
+from tensorflow.keras import Model
 
-X_train = df_train.drop(['Time', 'Class'], axis=1)  # We drop the features Time (useless), and the Class (label)
-y_train = df_train['Class']  # We create our label
-X_train = np.asarray(X_train)
-y_train = np.asarray(y_train)
+encoding_dim = 15
+input_data = Input(shape = (30, ))
 
-df_test_all = df[150000:]
+encoded = Dense(encoding_dim, activation = "relu")(input_data)
+decoded = Dense(30, activation = "sigmoid")(encoded)
 
-X_test_all = df_test_all.drop(['Time', 'Class'], axis=1)
-y_test_all = df_test_all['Class']
-X_test_all = np.asarray(X_test_all)
-y_test_all = np.asarray(y_test_all)
+autoencoder = Model(input_data, decoded)
 
-X_train_rank = df_train[df_rank.index[1:11]]  # We take the first ten ranked features
-X_train_rank = np.asarray(X_train_rank)
+encoder = Model(input_data, encoded)
+encoded_input = Input(shape = (encoding_dim, ))
+decoder_layer = autoencoder.layers[-1]
+decoder = Model(encoded_input, decoder_layer(encoded_input))
 
-X_test_all_rank = df_test_all[df_rank.index[1:11]]
-X_test_all_rank = np.asarray(X_test_all_rank)
-y_test_all = np.asarray(y_test_all)
+autoencoder.compile(optimizer = "adam", loss = "binary_crossentropy")
 
-# Confusion Matrix
-class_names = np.array(['0', '1'])
+autoencoder.fit(X_train, X_train, epochs = 15, batch_size = 256, validation_data = (X_test, X_test))
 
+encoded_data = encoder.predict(X_test)
+decoded_data = decoder.predict(encoded_data)
 
-def plot_confusion_matrix(cm, classes,
-                          title='Confusion matrix',
-                          cmap=plt.cm.Blues):
-    plt.imshow(cm, interpolation='nearest', cmap=cmap)
-    plt.title(title)
-    plt.colorbar()
-    tick_marks = np.arange(len(classes))
-    plt.xticks(tick_marks, classes, rotation=45)
-    plt.yticks(tick_marks, classes)
+autoencoder.summary()
 
-    fmt = 'd'
-    thresh = cm.max() / 2.
-    for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
-        plt.text(j, i, format(cm[i, j], fmt),
-                 horizontalalignment="center",
-                 color="white" if cm[i, j] > thresh else "black")
+# ----------------------------------------------------------------------------
+# Under-sampling (NearMiss)
+NearMiss_under_sampling()
 
-    plt.tight_layout()
-    plt.ylabel('True label')
-    plt.xlabel('Predicted label')
+# ----------------------------------------------------------------------------
+# SVM (NearMiss)
+model_SVM = SVC(kernel = "linear", probability = True, random_state = 42)
+model_SVM.fit(X_train_nearmiss, y_train_nearmiss) # Train model
 
+y_pred = model_SVM.predict(X_test) # Make predictions using test data
 
-# Model Selection
-classifier = svm.SVC(kernel='linear')
-classifier.fit(X_train, y_train)
+model = model_SVM # Change to 'model' so it can be passed to 'create_roc_curve' function
 
-# Testing the Model
-prediction_SVM_all = classifier.predict(X_test_all)
+print("\nClassification Report - SVM (NearMiss)\n")
+create_classification_report(y_test, y_pred) # Create classification report
+create_roc_curve(y_test, y_pred, model) # Create ROC curve
 
-cm = confusion_matrix(y_test_all, prediction_SVM_all)
-plot_confusion_matrix(cm, class_names)
+# ----------------------------------------------------------------------------
+# Isolation Forest (NearMiss)
+model_IF = IsolationForest(n_estimators = 100, contamination = 0.5, random_state = 42)
+model_IF.fit(X_train_nearmiss)
 
-print('\n---------------------- TRAINING A ----------------------\n')
-print('Our criterion give a result of '
-      + str(((cm[0][0] + cm[1][1]) / (sum(cm[0]) + sum(cm[1])) + 4 * cm[1][1] / (cm[1][0] + cm[1][1])) / 5))
+y_pred = model_IF.predict(X_test)
+y_pred = [1 if i == -1 else 0 for i in y_pred]
 
-print('We have detected ' + str(cm[1][1]) + ' frauds / ' + str(cm[1][1] + cm[1][0]) + ' total frauds.')
-print('\nSo, the probability to detect a fraud is ' + str(cm[1][1] / (cm[1][1] + cm[1][0])))
-print("the accuracy is : " + str((cm[0][0] + cm[1][1]) / (sum(cm[0]) + sum(cm[1]))))
+print("\nClassification Report - Isolation Forest (NearMiss)\n")
+create_classification_report(y_test, y_pred) # Create classification report
 
-# Model Rank
-classifier.fit(X_train_rank, y_train)
-prediction_SVM = classifier.predict(X_test_all_rank)
+fpr, tpr, thresholds = roc_curve(y_test, y_pred)
+plt.plot(fpr, tpr, 'k-', lw = 2)
+plt.xlabel('FPR')
+plt.ylabel('TPR')
+plt.show()
 
-cm = confusion_matrix(y_test_all, prediction_SVM)
-plot_confusion_matrix(cm, class_names)
+# Isolation Forest with Warm Start On New Trees (NearMiss)
+model_IF = IsolationForest(n_estimators = 100, contamination = 0.5, random_state = 42, warm_start = True)
+model_IF.n_estimators += 20
+model_IF.fit(X_train_nearmiss)
 
-print('\n--------------------- TESTING A ---------------------\n')
-print('Our criterion give a result of '
-      + str(((cm[0][0] + cm[1][1]) / (sum(cm[0]) + sum(cm[1])) + 4 * cm[1][1] / (cm[1][0] + cm[1][1])) / 5))
+y_pred = model_IF.predict(X_test)
+y_pred = [1 if i == -1 else 0 for i in y_pred]
 
-print('We have detected ' + str(cm[1][1]) + ' frauds / ' + str(cm[1][1] + cm[1][0]) + ' total frauds.')
-print('\nSo, the probability to detect a fraud is ' + str(cm[1][1] / (cm[1][1] + cm[1][0])))
-print("the accuracy is : " + str((cm[0][0] + cm[1][1]) / (sum(cm[0]) + sum(cm[1]))))
+print("\nClassification Report - Isolation Forest with Warm Start On New Trees (NearMiss)\n")
+create_classification_report(y_test, y_pred) # Create classification report
 
-# Re-balanced
-classifier_b = svm.SVC(kernel='linear', class_weight={0: 0.60, 1: 0.40})
-classifier_b.fit(X_train, y_train)
+fpr, tpr, thresholds = roc_curve(y_test, y_pred)
+plt.plot(fpr, tpr, 'k-', lw = 2)
+plt.xlabel('FPR')
+plt.ylabel('TPR')
+plt.show()
 
-# Testing Model B
-prediction_SVM_b_all = classifier_b.predict(X_test_all)
+# ----------------------------------------------------------------------------
+# Under-sampling (TomekLinks)
+tomek_links()
 
-cm = confusion_matrix(y_test_all, prediction_SVM_b_all)
-plot_confusion_matrix(cm, class_names)
+# ---------------------------------------------------------------------------- 
+# SVM (TomekLinks)
+model_SVM = SVC(kernel = "linear", probability = True, random_state = 42) # Create and train model
+model_SVM.fit(X_train_tomek, y_train_tomek)
 
-print('\n---------------------- TRAINING B ----------------------\n')
-print('Our criterion give a result of '
-      + str(((cm[0][0] + cm[1][1]) / (sum(cm[0]) + sum(cm[1])) + 4 * cm[1][1] / (cm[1][0] + cm[1][1])) / 5))
+y_pred = model_SVM.predict(X_test) # Testing model
 
-print('We have detected ' + str(cm[1][1]) + ' frauds / ' + str(cm[1][1] + cm[1][0]) + ' total frauds.')
-print('\nSo, the probability to detect a fraud is ' + str(cm[1][1] / (cm[1][1] + cm[1][0])))
-print("the accuracy is : " + str((cm[0][0] + cm[1][1]) / (sum(cm[0]) + sum(cm[1]))))
+support_vectors = model_SVM.support_vectors_ # Store support vectors
 
-# Models Rank
-classifier_b.fit(X_train_rank, y_train)
-prediction_SVM = classifier_b.predict(X_test_all_rank)
+model = model_SVM # Change to 'model' so it can be passed to 'create_roc_curve' function
+model.score(X_train_tomek, y_train_tomek)
+model.score(X_test, y_test)
 
-cm = confusion_matrix(y_test_all, prediction_SVM)
-plot_confusion_matrix(cm, class_names)
+print("\nClassification Report - SVM (TomekLinks)\n")
+create_classification_report(y_test, y_pred) # Create classification report
+create_roc_curve(y_test, y_pred, model) # Create ROC curve
 
-print('\n--------------------- TESTING B ---------------------\n')
-print('Our criterion give a result of '
-      + str(((cm[0][0] + cm[1][1]) / (sum(cm[0]) + sum(cm[1])) + 4 * cm[1][1] / (cm[1][0] + cm[1][1])) / 5))
+# ----------------------------------------------------------------------------
+# Isolation Forest (TomekLinks)
+model_IF = IsolationForest(n_estimators = 100, contamination = 0.5, random_state = 42)
+model_IF.fit(X_train_tomek)
 
-print('We have detected ' + str(cm[1][1]) + ' frauds / ' + str(cm[1][1] + cm[1][0]) + ' total frauds.')
-print('\nSo, the probability to detect a fraud is ' + str(cm[1][1] / (cm[1][1] + cm[1][0])))
-print("the accuracy is : " + str((cm[0][0] + cm[1][1]) / (sum(cm[0]) + sum(cm[1]))))
+y_pred = model_IF.predict(X_test)
+y_pred = [1 if i == -1 else 0 for i in y_pred]
+
+print("\nClassification Report - Isolation Forest (TomekLinks)\n")
+create_classification_report(y_test, y_pred) # Create classification report
+
+fpr, tpr, thresholds = roc_curve(y_test, y_pred)
+plt.plot(fpr, tpr, 'k-', lw = 2)
+plt.xlabel('FPR')
+plt.ylabel('TPR')
+plt.show()
+
+# Isolation Forest with Warm Start On New Trees (TomekLinks)
+model_IF = IsolationForest(n_estimators = 100, contamination = 0.5, random_state = 42, warm_start = True)
+model_IF.n_estimators += 20
+model_IF.fit(X_train_tomek)
+
+y_pred = model_IF.predict(X_test)
+y_pred = [1 if i == -1 else 0 for i in y_pred]
+
+print("\nClassification Report - Isolation Forest with Warm Start On New Trees (TomekLinks)\n")
+create_classification_report(y_test, y_pred) # Create classification report
+
+fpr, tpr, thresholds = roc_curve(y_test, y_pred)
+plt.plot(fpr, tpr, 'k-', lw = 2)
+plt.xlabel('FPR')
+plt.ylabel('TPR')
+plt.show()
+
+# ----------------------------------------------------------------------------
+# Under-sampling (ENN)
+enn_under_sampling()
+
+# ---------------------------------------------------------------------------- 
+# SVM (ENN)
+model_SVM = SVC(kernel = "linear", probability = True, random_state = 42) # Create and train model
+model_SVM.fit(X_train_enn, y_train_enn)
+
+y_pred = model_SVM.predict(X_test) # Testing model
+
+support_vectors = model_SVM.support_vectors_ # Store support vectors
+
+model = model_SVM # Change to 'model' so it can be passed to 'create_roc_curve' function
+model.score(X_train_enn, y_train_enn)
+model.score(X_test, y_test)
+
+print("\nClassification Report - SVM (ENN)\n")
+create_classification_report(y_test, y_pred) # Create classification report
+create_roc_curve(y_test, y_pred, model) # Create ROC curve
+
+# ----------------------------------------------------------------------------
+# Isolation Forest (ENN)
+model_IF = IsolationForest(n_estimators = 100, contamination = 0.5, random_state = 42)
+model_IF.fit(X_train_enn)
+
+y_pred = model_IF.predict(X_test)
+y_pred = [1 if i == -1 else 0 for i in y_pred]
+
+print("\nClassification Report - Isolation Forest (ENN)\n")
+create_classification_report(y_test, y_pred) # Create classification report
+
+fpr, tpr, thresholds = roc_curve(y_test, y_pred)
+plt.plot(fpr, tpr, 'k-', lw = 2)
+plt.xlabel('FPR')
+plt.ylabel('TPR')
+plt.show()
+
+# Isolation Forest with Warm Start On New Trees (ENN)
+model_IF = IsolationForest(n_estimators = 100, contamination = 0.5, random_state = 42, warm_start = True)
+model_IF.n_estimators += 20
+model_IF.fit(X_train_enn)
+
+y_pred = model_IF.predict(X_test)
+y_pred = [1 if i == -1 else 0 for i in y_pred]
+
+print("\nClassification Report - Isolation Forest with Warm Start On New Trees (ENN)\n")
+create_classification_report(y_test, y_pred) # Create classification report
+
+fpr, tpr, thresholds = roc_curve(y_test, y_pred)
+plt.plot(fpr, tpr, 'k-', lw = 2)
+plt.xlabel('FPR')
+plt.ylabel('TPR')
+plt.show()
